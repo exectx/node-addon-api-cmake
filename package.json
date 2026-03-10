@@ -1,0 +1,26 @@
+{
+  "name": "node-addon-api-cmake-addon",
+  "version": "1.0.0",
+  "description": "Node.js native addon using node-addon-api (C++) + CMake (no node-gyp / cmake-js)",
+  "main": "index.js",
+  "scripts": {
+    "configure": "node configure.js",
+    "cmake:config": "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release",
+    "cmake:build": "cmake --build build --config Release",
+    "build": "npm run configure && npm run cmake:config && npm run cmake:build",
+    "clean": "node -e \"require('fs').rmSync('build', {recursive:true, force:true})\"",
+    "rebuild": "npm run clean && npm run build",
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "node-addon-api": "^8.6.0"
+  },
+  "keywords": [
+    "node-addon-api",
+    "napi",
+    "native",
+    "addon",
+    "cmake"
+  ],
+  "license": "MIT"
+}
