@@ -6,8 +6,8 @@ no node-gyp, no cmake-js, no binding.gyp.
 ## How it works
 
 ```
-configure.js          ← discovers Node.js + node-addon-api headers, writes build/node_vars.cmake
-CMakeLists.txt        ← consumes node_vars.cmake; includes both Node + NAPI headers
+CMakeLists.txt        ← configures the addon target and loads the helper module
+cmake/NodeAddon.cmake ← asks Node for header paths, sets platform linker rules
 src/addon.cpp         ← C++ API: Napi::Function, Napi::ObjectWrap<Counter> …
 index.js              ← require() the built .node from build/
 ```
@@ -15,11 +15,12 @@ index.js              ← require() the built .node from build/
 ### Two include paths
 node-addon-api is a header-only C++ wrapper **over** N-API.  
 CMake must include **both**:
-- `NODE_INCLUDE_DIR` → `node_api.h` (the underlying C API in Node.js itself)
-- `NAPI_INCLUDE_DIR` → `napi.h`, `napi-inl.h` (the C++ wrapper classes)
+- `NODE_API_HEADERS_INCLUDE_DIR` → `node_api.h` from `node-api-headers`
+- `NODE_ADDON_API_INCLUDE_DIR` → `napi.h`, `napi-inl.h` from `node-addon-api`
 
-`configure.js` resolves `NAPI_INCLUDE_DIR` from the locally installed
-`node-addon-api` package and installs it automatically if missing.
+At configure time, CMake runs `node -p` against the local npm packages to
+discover those paths. On Windows it also reads the `.def` files exported by
+`node-api-headers` and generates the import libraries needed by MSVC.
 
 ## Prerequisites
 
@@ -32,8 +33,8 @@ CMake must include **both**:
 ## Quick start
 
 ```bash
-npm install          # installs node-addon-api (the C++ headers)
-npm run build        # configure.js + cmake -S . -B build + cmake --build
+npm install          # installs node-addon-api + node-api-headers
+npm run build        # cmake -S . -B build + cmake --build
 npm test
 ```
 
@@ -41,11 +42,16 @@ npm test
 
 ```bash
 npm install
-node configure.js
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 node test.js
 ```
+
+### Platform notes
+
+- macOS uses `-undefined dynamic_lookup`, so the addon resolves Node symbols at load time.
+- Windows uses the `node-api-headers` `.def` files to generate `js_native_api.lib` and `node_api.lib` during CMake configure.
+- This setup targets plain Node.js on Windows, not Electron.
 
 ## Exported API
 
@@ -72,7 +78,7 @@ class Counter {
 | Error handling | Check `napi_status` manually | C++ exceptions |
 | String handling | Manual buffer + length | `.Utf8Value()` |
 | Object wrapping | Complex manual setup | `Napi::ObjectWrap<T>` |
-| Extra dependency | None | `npm i node-addon-api` |
+| Extra dependency | None | `npm i node-addon-api node-api-headers` |
 | ABI stability | ✓ | ✓ (thin C++ header over N-API) |
 | Boilerplate | More | Less |
 | Compile-time overhead | Less | Slightly more (templates) |
