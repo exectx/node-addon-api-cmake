@@ -1,0 +1,106 @@
+name: Publish Prebuilt Package
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build-macos-universal:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DNODE_ADDON_OUTPUT_DIR="${{ github.workspace }}/out/darwin-universal"
+
+      - name: Build addon
+        run: cmake --build build --config Release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: darwin-universal
+          path: out/darwin-universal/addon.node
+          if-no-files-found: error
+
+  build-windows:
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cmake_arch: Win32
+            artifact: win32-ia32
+          - cmake_arch: x64
+            artifact: win32-x64
+          - cmake_arch: ARM64
+            artifact: win32-arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure CMake
+        run: cmake -S . -B build -A ${{ matrix.cmake_arch }} -DNODE_ADDON_OUTPUT_DIR="${{ github.workspace }}/out/${{ matrix.artifact }}"
+
+      - name: Build addon
+        run: cmake --build build --config Release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: out/${{ matrix.artifact }}/addon.node
+          if-no-files-found: error
+
+  publish:
+    needs:
+      - build-macos-universal
+      - build-windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Stage prebuilds
+        run: node scripts/stage-prebuilds.js artifacts
+
+      - name: Check npm contents
+        run: npm pack --dry-run
+
+      - name: Publish package
+        run: npm publish --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

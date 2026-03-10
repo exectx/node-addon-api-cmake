@@ -12,6 +12,41 @@ src/addon.cpp         ← C++ API: Napi::Function, Napi::ObjectWrap<Counter> …
 index.js              ← require() the built .node from build/
 ```
 
+## Shipping prebuilt binaries with npm
+
+This repository now supports a single npm package that bundles prebuilt binaries for:
+
+- macOS universal (`prebuilds/darwin-universal/addon.node`)
+- Windows x86 (`prebuilds/win32-ia32/addon.node`)
+- Windows x64 (`prebuilds/win32-x64/addon.node`)
+- Windows arm64 (`prebuilds/win32-arm64/addon.node`)
+
+At runtime, `index.js` first looks for the matching file in `prebuilds/` and only falls back to `build/` for local development.
+
+### Release flow
+
+GitHub Actions builds each target on its own runner, uploads the resulting `addon.node` files as workflow artifacts, then a final publish job downloads those artifacts, stages them into `prebuilds/`, runs `npm pack --dry-run`, and publishes the package.
+
+The workflow lives at `.github/workflows/publish.yml`.
+
+### Manual staging
+
+If you already have CI artifacts unpacked locally under `artifacts/`, assemble the npm-ready layout with:
+
+```bash
+npm run stage:prebuilds
+npm run pack:check
+```
+
+This expects the following files to exist:
+
+```text
+artifacts/darwin-universal/addon.node
+artifacts/win32-ia32/addon.node
+artifacts/win32-x64/addon.node
+artifacts/win32-arm64/addon.node
+```
+
 ### Two include paths
 node-addon-api is a header-only C++ wrapper **over** N-API.  
 CMake must include **both**:
