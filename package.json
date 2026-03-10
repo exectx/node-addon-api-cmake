@@ -8,6 +8,9 @@
     "README.md",
     "prebuilds/**/*.node"
   ],
+  "repository": {
+    "url": "https://github.com/exectx/node-addon-api-cmake"
+  },
   "scripts": {
     "cmake:config": "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release",
     "cmake:build": "cmake --build build --config Release",
