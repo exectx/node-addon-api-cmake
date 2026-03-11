@@ -48,8 +48,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - cmake_arch: Win32
-            artifact: win32-ia32
           - cmake_arch: x64
             artifact: win32-x64
           - cmake_arch: ARM64
@@ -114,9 +112,6 @@ jobs:
       fail-fast: false
       matrix:
         settings:
-          - host: windows-latest
-            target: win32-ia32
-            architecture: x86
           - host: windows-latest
             target: win32-x64
             architecture: x64
@@ -191,7 +186,6 @@ jobs:
         shell: bash
         run: |
           npm pack --dry-run ./npm/darwin-universal
-          npm pack --dry-run ./npm/win32-ia32
           npm pack --dry-run ./npm/win32-x64
           npm pack --dry-run ./npm/win32-arm64
           npm pack --dry-run .
@@ -200,7 +194,6 @@ jobs:
         shell: bash
         run: |
           npm publish ./npm/darwin-universal --access public --provenance --tag "${{ steps.release.outputs.npm_tag }}"
-          npm publish ./npm/win32-ia32 --access public --provenance --tag "${{ steps.release.outputs.npm_tag }}"
           npm publish ./npm/win32-x64 --access public --provenance --tag "${{ steps.release.outputs.npm_tag }}"
           npm publish ./npm/win32-arm64 --access public --provenance --tag "${{ steps.release.outputs.npm_tag }}"
         env:

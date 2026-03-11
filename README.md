@@ -19,7 +19,6 @@ This repository follows the napi-rs packaging model: one root JavaScript package
 The root package is `node-addon-api-cmake-addon` and declares these platform packages as `optionalDependencies`:
 
 - `node-addon-api-cmake-addon-darwin-universal`
-- `node-addon-api-cmake-addon-win32-ia32`
 - `node-addon-api-cmake-addon-win32-x64`
 - `node-addon-api-cmake-addon-win32-arm64`
 
@@ -93,7 +92,6 @@ This expects the following files to exist:
 
 ```text
 artifacts/darwin-universal/addon.node
-artifacts/win32-ia32/addon.node
 artifacts/win32-x64/addon.node
 artifacts/win32-arm64/addon.node
 ```

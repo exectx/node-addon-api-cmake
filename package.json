@@ -32,11 +32,11 @@
     "node-api-headers": "^1.8.0"
   },
   "devDependencies": {
+    "@changesets/changelog-git": "^0.2.1",
     "@changesets/cli": "^2.29.7"
   },
   "optionalDependencies": {
     "node-addon-api-cmake-addon-darwin-universal": "1.0.0",
-    "node-addon-api-cmake-addon-win32-ia32": "1.0.0",
     "node-addon-api-cmake-addon-win32-x64": "1.0.0",
     "node-addon-api-cmake-addon-win32-arm64": "1.0.0"
   },

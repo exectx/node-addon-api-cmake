@@ -8,7 +8,6 @@ const packageJsonPath = path.join(repoRoot, 'package.json');
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 const releaseTargets = [
   'darwin-universal',
-  'win32-ia32',
   'win32-x64',
   'win32-arm64',
 ];

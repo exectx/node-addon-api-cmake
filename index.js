@@ -10,10 +10,6 @@ function getTarget(platform, arch) {
   }
 
   if (platform === 'win32') {
-    if (arch === 'ia32') {
-      return 'win32-ia32';
-    }
-
     if (arch === 'x64') {
       return 'win32-x64';
     }

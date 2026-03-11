@@ -13,10 +13,6 @@ const targets = {
     os: ['darwin'],
     cpu: ['x64', 'arm64'],
   },
-  'win32-ia32': {
-    os: ['win32'],
-    cpu: ['ia32'],
-  },
   'win32-x64': {
     os: ['win32'],
     cpu: ['x64'],
