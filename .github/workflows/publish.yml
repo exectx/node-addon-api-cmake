@@ -4,16 +4,16 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main
+      - master
     tags:
       - "v*"
     paths-ignore:
-      - '**/*.md'
+      - "**/*.md"
       - LICENSE
-      - '**/*.gitignore'
+      - "**/*.gitignore"
       - .editorconfig
       - docs/**
-  pull_request:
+  pull_request: null
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -21,7 +21,7 @@ concurrency:
 
 env:
   APP_NAME: addon
-  NODE_VERSION: '24'
+  NODE_VERSION: "24"
 
 permissions:
   contents: read
