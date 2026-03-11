@@ -1,0 +1,56 @@
+name: Prerelease PR
+
+on:
+  push:
+    branches:
+      - release/next
+
+concurrency:
+  group: prerelease-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prerelease-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --omit=optional
+
+      - name: Version prerelease packages
+        run: npm run release:version
+
+      - name: Detect pending release changes
+        id: changes
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create or update prerelease PR
+        if: steps.changes.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: changesets-release/release-next
+          base: release/next
+          commit-message: "chore: version prerelease packages"
+          title: "chore: version prerelease packages"
+          body: |
+            This PR was generated from `release/next` after running `npm run release:version`.
+          delete-branch: true

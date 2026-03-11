@@ -29,7 +29,56 @@ At runtime, `index.js` first looks for a local binary in `build/` for developmen
 
 GitHub Actions builds each target on its own runner, uploads the resulting `addon.node` files as workflow artifacts, tests them on matching runners, then a publish job generates `npm/<target>/package.json` manifests, copies the binaries into those directories, publishes the platform packages, and finally publishes the root package.
 
-The workflow lives at `.github/workflows/publish.yml`.
+- `.github/workflows/changesets-release.yml` opens or updates stable release PRs for `master`
+- `.github/workflows/changesets-prerelease.yml` opens or updates prerelease release PRs for `release/next`
+- `.github/workflows/publish.yml` publishes tagged stable and prerelease releases
+- `.github/workflows/canary.yml` publishes manual canary snapshots from CI
+
+### Versioning every release lane
+
+This repository uses Changesets for release intent and root package versioning, while custom scripts keep the generated native packages in sync.
+
+- `master` is the stable lane
+- `release/next` is the prerelease lane
+- `workflow_dispatch` on `.github/workflows/canary.yml` publishes a canary snapshot with npm tag `canary`
+
+Contributors add a changeset for user-facing changes with:
+
+```bash
+npm run changeset
+```
+
+When a release is ready, Changesets updates `package.json`, then `scripts/sync-release-versions.js` rewrites the root `optionalDependencies` so every native package stays on the same version as the root package.
+
+#### Stable releases
+
+1. Merge changesets into `master`.
+2. Let the release PR from `.github/workflows/changesets-release.yml` update versions.
+3. Merge that release PR.
+4. Tag the merge commit as `vX.Y.Z`.
+5. `.github/workflows/publish.yml` publishes the root package and native target packages with npm tag `latest`.
+
+#### Prereleases
+
+1. Cherry-pick or merge release candidates into `release/next`.
+2. Enter prerelease mode once:
+
+```bash
+npm run release:pre:enter
+```
+
+3. Merge the prerelease release PR from `.github/workflows/changesets-prerelease.yml`.
+4. Tag the prerelease commit as `vX.Y.Z-next.N`.
+5. `.github/workflows/publish.yml` publishes the release with npm tag `next`.
+6. Exit prerelease mode when the lane is complete:
+
+```bash
+npm run release:pre:exit
+```
+
+#### Canary snapshots
+
+Run the `Canary` workflow manually from GitHub Actions. It uses Changesets snapshot versioning, syncs the root `optionalDependencies`, prepares the generated native packages, and publishes everything with npm tag `canary` without requiring a git tag.
 
 ### Manual package preparation
 

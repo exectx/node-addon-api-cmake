@@ -11,6 +11,7 @@
     "url": "https://github.com/exectx/node-addon-api-cmake"
   },
   "scripts": {
+    "changeset": "changeset",
     "cmake:config": "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release",
     "cmake:build": "cmake --build build --config Release",
     "build": "npm run cmake:config && npm run cmake:build",
@@ -19,11 +20,19 @@
     "rebuild": "npm run clean && npm run build",
     "prepare:npm": "node scripts/prepare-npm-packages.js",
     "pack:check": "npm pack --dry-run",
+    "release:pre:enter": "changeset pre enter next",
+    "release:pre:exit": "changeset pre exit",
+    "release:sync": "node scripts/sync-release-versions.js && npm install --package-lock-only --ignore-scripts",
+    "release:version": "changeset version && npm run release:sync",
+    "release:version:snapshot": "changeset version --snapshot canary && npm run release:sync",
     "test": "node test.js"
   },
   "dependencies": {
     "node-addon-api": "^8.6.0",
     "node-api-headers": "^1.8.0"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.7"
   },
   "optionalDependencies": {
     "node-addon-api-cmake-addon-darwin-universal": "1.0.0",
