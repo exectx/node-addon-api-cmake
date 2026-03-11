@@ -14,27 +14,29 @@ index.js              ← require() the built .node from build/
 
 ## Shipping prebuilt binaries with npm
 
-This repository now supports a single npm package that bundles prebuilt binaries for:
+This repository follows the napi-rs packaging model: one root JavaScript package plus one npm package per native target.
 
-- macOS universal (`prebuilds/darwin-universal/addon.node`)
-- Windows x86 (`prebuilds/win32-ia32/addon.node`)
-- Windows x64 (`prebuilds/win32-x64/addon.node`)
-- Windows arm64 (`prebuilds/win32-arm64/addon.node`)
+The root package is `node-addon-api-cmake-addon` and declares these platform packages as `optionalDependencies`:
 
-At runtime, `index.js` first looks for the matching file in `prebuilds/` and only falls back to `build/` for local development.
+- `node-addon-api-cmake-addon-darwin-universal`
+- `node-addon-api-cmake-addon-win32-ia32`
+- `node-addon-api-cmake-addon-win32-x64`
+- `node-addon-api-cmake-addon-win32-arm64`
+
+At runtime, `index.js` first looks for a local binary in `build/` for development, then checks generated `npm/<target>/addon.node` files in CI, and finally falls back to the installed platform package.
 
 ### Release flow
 
-GitHub Actions builds each target on its own runner, uploads the resulting `addon.node` files as workflow artifacts, then a final publish job downloads those artifacts, stages them into `prebuilds/`, runs `npm pack --dry-run`, and publishes the package.
+GitHub Actions builds each target on its own runner, uploads the resulting `addon.node` files as workflow artifacts, tests them on matching runners, then a publish job generates `npm/<target>/package.json` manifests, copies the binaries into those directories, publishes the platform packages, and finally publishes the root package.
 
 The workflow lives at `.github/workflows/publish.yml`.
 
-### Manual staging
+### Manual package preparation
 
-If you already have CI artifacts unpacked locally under `artifacts/`, assemble the npm-ready layout with:
+If you already have CI artifacts unpacked locally under `artifacts/`, assemble the publishable package directories with:
 
 ```bash
-npm run stage:prebuilds
+npm run prepare:npm
 npm run pack:check
 ```
 
@@ -61,7 +63,7 @@ discover those paths. On Windows it also reads the `.def` files exported by
 
 | Tool | Version |
 |------|---------|
-| Node.js | ≥ 12 |
+| Node.js | 24.x LTS |
 | CMake | ≥ 3.15 |
 | C++ compiler | GCC 8+ / Clang 8+ / MSVC 2019+ |
 

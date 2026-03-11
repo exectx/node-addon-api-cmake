@@ -5,8 +5,7 @@
   "main": "index.js",
   "files": [
     "index.js",
-    "README.md",
-    "prebuilds/**/*.node"
+    "README.md"
   ],
   "repository": {
     "url": "https://github.com/exectx/node-addon-api-cmake"
@@ -16,15 +15,21 @@
     "cmake:build": "cmake --build build --config Release",
     "build": "npm run cmake:config && npm run cmake:build",
     "clean": "node -e \"require('fs').rmSync('build', {recursive:true, force:true})\"",
-    "clean:prebuilds": "node -e \"require('fs').rmSync('prebuilds', {recursive:true, force:true})\"",
+    "clean:npm": "node -e \"require('fs').rmSync('npm', {recursive:true, force:true})\"",
     "rebuild": "npm run clean && npm run build",
-    "stage:prebuilds": "node scripts/stage-prebuilds.js",
+    "prepare:npm": "node scripts/prepare-npm-packages.js",
     "pack:check": "npm pack --dry-run",
     "test": "node test.js"
   },
   "dependencies": {
     "node-addon-api": "^8.6.0",
     "node-api-headers": "^1.8.0"
+  },
+  "optionalDependencies": {
+    "node-addon-api-cmake-addon-darwin-universal": "1.0.0",
+    "node-addon-api-cmake-addon-win32-ia32": "1.0.0",
+    "node-addon-api-cmake-addon-win32-x64": "1.0.0",
+    "node-addon-api-cmake-addon-win32-arm64": "1.0.0"
   },
   "keywords": [
     "node-addon-api",

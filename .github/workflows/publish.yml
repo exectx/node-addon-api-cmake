@@ -1,10 +1,27 @@
-name: Publish Prebuilt Package
+name: CI
 
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
-      - 'v*'
+      - "v*"
+    paths-ignore:
+      - '**/*.md'
+      - LICENSE
+      - '**/*.gitignore'
+      - .editorconfig
+      - docs/**
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_NAME: addon
+  NODE_VERSION: '24'
 
 permissions:
   contents: read
@@ -14,15 +31,15 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --omit=optional
 
       - name: Configure CMake
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DNODE_ADDON_OUTPUT_DIR="${{ github.workspace }}/out/darwin-universal"
@@ -30,10 +47,10 @@ jobs:
       - name: Build addon
         run: cmake --build build --config Release
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: darwin-universal
-          path: out/darwin-universal/addon.node
+          path: out/darwin-universal/${{ env.APP_NAME }}.node
           if-no-files-found: error
 
   build-windows:
@@ -51,15 +68,15 @@ jobs:
             artifact: win32-arm64
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --omit=optional
 
       - name: Configure CMake
         run: cmake -S . -B build -A ${{ matrix.cmake_arch }} -DNODE_ADDON_OUTPUT_DIR="${{ github.workspace }}/out/${{ matrix.artifact }}"
@@ -67,40 +84,147 @@ jobs:
       - name: Build addon
         run: cmake --build build --config Release
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
-          path: out/${{ matrix.artifact }}/addon.node
+          path: out/${{ matrix.artifact }}/${{ env.APP_NAME }}.node
           if-no-files-found: error
 
+  test-macos-binding:
+    name: Test darwin-universal - node@24
+    needs:
+      - build-macos-universal
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --omit=optional
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: darwin-universal
+          path: artifacts/darwin-universal
+
+      - name: Prepare npm package
+        run: node scripts/prepare-npm-packages.js artifacts darwin-universal
+
+      - name: Test bindings
+        run: npm test
+
+  test-windows-binding:
+    name: Test ${{ matrix.settings.target }} - node@24
+    needs:
+      - build-windows
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - host: windows-latest
+            target: win32-ia32
+            architecture: x86
+          - host: windows-latest
+            target: win32-x64
+            architecture: x64
+          - host: windows-11-arm
+            target: win32-arm64
+            architecture: arm64
+    runs-on: ${{ matrix.settings.host }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          architecture: ${{ matrix.settings.architecture }}
+
+      - name: Install dependencies
+        run: npm ci --omit=optional
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.settings.target }}
+          path: artifacts/${{ matrix.settings.target }}
+
+      - name: Prepare npm package
+        run: node scripts/prepare-npm-packages.js artifacts ${{ matrix.settings.target }}
+
+      - name: Test bindings
+        run: npm test
+
   publish:
+    if: startsWith(github.ref, 'refs/tags/v')
     needs:
       - build-macos-universal
       - build-windows
+      - test-macos-binding
+      - test-windows-binding
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
           registry-url: https://registry.npmjs.org
 
-      - uses: actions/download-artifact@v4
+      - name: Install dependencies
+        run: npm ci --omit=optional
+
+      - name: Resolve release tag
+        id: release
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if [[ "${GITHUB_REF_NAME}" != "v${VERSION}" ]]; then
+            echo "Git tag ${GITHUB_REF_NAME} does not match package.json version ${VERSION}" >&2
+            exit 1
+          fi
+
+          if [[ "${VERSION}" == *-* ]]; then
+            echo "npm_tag=next" >> "$GITHUB_OUTPUT"
+          else
+            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
 
-      - name: Stage prebuilds
-        run: node scripts/stage-prebuilds.js artifacts
+      - name: Prepare npm packages
+        run: node scripts/prepare-npm-packages.js artifacts
 
       - name: Check npm contents
-        run: npm pack --dry-run
+        shell: bash
+        run: |
+          npm pack --dry-run ./npm/darwin-universal
+          npm pack --dry-run ./npm/win32-ia32
+          npm pack --dry-run ./npm/win32-x64
+          npm pack --dry-run ./npm/win32-arm64
+          npm pack --dry-run .
+
+      - name: Publish platform packages
+        shell: bash
+        run: |
+          npm publish ./npm/darwin-universal --access public --provenance --tag "${{ steps.release.outputs.npm_tag }}"
+          npm publish ./npm/win32-ia32 --access public --provenance --tag "${{ steps.release.outputs.npm_tag }}"
+          npm publish ./npm/win32-x64 --access public --provenance --tag "${{ steps.release.outputs.npm_tag }}"
+          npm publish ./npm/win32-arm64 --access public --provenance --tag "${{ steps.release.outputs.npm_tag }}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish package
-        run: npm publish --provenance
+        run: npm publish --access public --provenance --tag "${{ steps.release.outputs.npm_tag }}"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
